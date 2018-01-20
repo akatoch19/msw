@@ -1,0 +1,28 @@
+---
+
+- name: Change hostname to myserver
+  hostname:
+    name: "{{ hostname }}"
+
+- name: Add myself to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '^127\.0\.0\.1[ \t]+localhost'
+    line: '127.0.0.1 localhost {{ hostname }}'
+    state: present
+
+- name: Download vesta
+  get_url: url={{ vesta_download_path }} dest={{ vesta_install_path }}
+
+- name: run the installer
+  shell: >
+     yes | bash vst-install.sh --force --nginx yes --apache yes --phpfpm no
+     --named no --remi yes --vsftpd no --proftpd no --iptables no
+     --fail2ban no --quota no --exim no --dovecot no --spamassassin no
+     --clamav no --softaculous no --mysql yes --postgresql no
+     --hostname {{ hostname }}
+     --email {{ email }}
+     --password {{ password }}
+  args:
+    creates: /root/.vestainstalled
+  become: yes

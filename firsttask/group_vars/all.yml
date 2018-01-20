@@ -1,0 +1,5 @@
+vesta_download_path: "http://vestacp.com/pub/vst-install.sh"
+vesta_install_path: "/home/ubuntu"
+hostname: "webserver"
+email: "michael.k.wang@gmail.com"
+password: "vest@123#"
