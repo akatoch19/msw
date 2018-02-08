@@ -1,0 +1,11 @@
+---
+
+- name: get solr
+  get_url: url={{ solr_url }} dest=/home/{{ ansible_ssh_user }}
+
+- name: extract the service installation file..
+  command: "tar xzf {{ solr_file }}.tgz {{ solr_file }}/bin/install_solr_service.sh --strip-components=2"
+
+- name: install & start Solr as a service..
+  command: "./install_solr_service.sh {{ solr_file }}.tgz -i /opt -d /var/solr -u {{ ansible_ssh_user }} -s solr -p 8983"
+  become: true

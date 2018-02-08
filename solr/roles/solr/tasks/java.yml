@@ -1,0 +1,27 @@
+---
+
+- name: Update and upgrade apt packages
+  apt: upgrade=dist update_cache=yes
+  become: true
+
+- name: Install java repository
+  apt_repository: repo="ppa:webupd8team/java"
+  become: true
+
+- name: Update apt packages
+  apt: update_cache=yes
+  become: true
+
+- name: accept oracle license
+  debconf:
+    name: "oracle-java8-installer"
+    question: "shared/accepted-oracle-license-v1-1"
+    value: "true"
+    vtype: "select"
+
+- name: Install Python & java prerequisites
+  apt: name="{{item}}" state=present update_cache=yes
+  become: true
+  with_items:
+    - python-software-properties
+    - oracle-java8-installer
