@@ -1,0 +1,6 @@
+---
+- name: Setup ec2 and rds
+  hosts: all
+  roles:
+    - ec2
+    - rds

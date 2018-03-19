@@ -1,0 +1,16 @@
+- name: Render ec2 Template
+  template: src=ec2.yml.j2 dest=rendered_templates/ec2.yml
+
+- name: Create ec2 Stack
+  cloudformation:
+    stack_name: "{{stack_prefix}}-ec2"
+    state: "present"
+    region: "{{region}}"
+    disable_rollback: true
+    template: rendered_templates/ec2.yml
+    template_format: yaml
+    template_parameters:
+      Vpc: "{{vpc_stack.stack_outputs.Vpc}}"
+    tags:
+      Stack: "{{stack_prefix}}-ec2"
+  register: ec2_stack

@@ -1,0 +1,16 @@
+- name: Render rds Template
+  template: src=rds.yml.j2 dest=rendered_templates/rds.yml
+
+- name: Create rds Stack
+  cloudformation:
+    stack_name: "{{stack_prefix}}-rds"
+    state: "present"
+    region: "{{region}}"
+    disable_rollback: true
+    template: rendered_templates/rds.yml
+    template_format: yaml
+    template_parameters:
+      Vpc: "{{vpc_stack.stack_outputs.Vpc}}"
+    tags:
+      Stack: "{{stack_prefix}}-rds"
+  register: rds_stack

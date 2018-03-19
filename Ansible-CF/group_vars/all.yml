@@ -1,0 +1,12 @@
+region: us-east-1
+stack_prefix: Mick
+vpc:
+  cidr: 10.201.48.0/23
+  slash: 24
+segments:
+  Public:
+    azs: 3
+    slash: 26   # size of AZ subnets in each segment
+  Private:
+    azs: 3
+    slash: 26   # size of AZ subnets in each segment
