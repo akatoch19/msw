@@ -1,0 +1,112 @@
+#Jinja2
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template.
+Parameters:
+  DBSubnetId1:
+    Type: String
+    Default: subnet-5d96bf39
+    Description: "[REQUIRED] Subnet To RDS Instance"
+  DBSubnetId2:
+    Type: String
+    Default: subnet-4637ac1f
+    Description: "[REQUIRED] Subnet To RDS Instance"
+  VPCID:
+    Type: String
+    Default: vpc-3d264459
+    Description: "[REQUIRED] VPC ID"
+  DBUser:
+    NoEcho: 'true'
+    Description: " Database Admin Username"
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: Database Admin Password
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBInstanceClass:
+    Type: String
+    Default: db.m4.large
+  DBInstanceIdentifier:
+    Type: String
+    Default: Oracle-db
+  DatabaseName:
+    Type: String
+    Default: wimsdb
+Resources:
+  RDSInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Ref: VPCID
+      GroupDescription: Oracle RDS security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '1521'
+        ToPort: '1521'
+        CidrIp: 10.0.0.0/8
+      Tags:
+      - Key: Name
+        Value: SG-Oracle-RDS
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Oracle RDS subnet Groups
+      SubnetIds:
+      - Ref: DBSubnetId1
+      - Ref: DBSubnetId2
+  DBParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: DBParameterGroup
+      Family: oracle-se-11.2
+      Tags:
+      - Value:
+          Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - DBParameterGroup
+        Key: Name
+  OracleDB:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      MasterUsername:
+        Ref: DBUser
+      MasterUserPassword:
+        Ref: DBPassword
+      Engine: oracle-se
+      DBName:
+        Ref: DatabaseName
+      AllocatedStorage: '100'
+      DBInstanceClass:
+        Ref: DBInstanceClass
+      LicenseModel: bring-your-own-license
+      StorageType: gp2
+      MultiAZ: 'true'
+      DBInstanceIdentifier:
+        Ref: DBInstanceIdentifier
+      PubliclyAccessible: 'false'
+      DBParameterGroupName:
+        Ref: DBParameterGroup
+      DBSubnetGroupName:
+        Ref: RDSSubnetGroup
+      VPCSecurityGroups:
+      - Ref: RDSInstanceSecurityGroup
+      Tags:
+      - Key: Name
+        Value: Oracle-RDS
+Outputs:
+  RDSEndpoint:
+    Value:
+      Fn::GetAtt:
+      - OracleDB
+      - Endpoint.Address
+    Description: RDS DNS Name
