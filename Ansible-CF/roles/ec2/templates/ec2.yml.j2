@@ -1,0 +1,224 @@
+#jinja2
+  
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template.
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: m5.large
+    AllowedValues:
+    - t1.micro
+    - t2.nano
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    - m1.small
+    - m1.medium
+    - m1.large
+    - m5.large
+    - m1.xlarge
+    - m2.xlarge
+    - m2.2xlarge
+    - m2.4xlarge
+    - m3.medium
+    - m3.large
+    - m3.xlarge
+    - m3.2xlarge
+    - m4.large
+    - m4.xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.10xlarge
+    - c1.medium
+    - c1.xlarge
+    - c3.large
+    - c3.xlarge
+    - c3.2xlarge
+    - c3.4xlarge
+    - c3.8xlarge
+    - c4.large
+    - c4.xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - g2.2xlarge
+    - g2.8xlarge
+    - r3.large
+    - r3.xlarge
+    - r3.2xlarge
+    - r3.4xlarge
+    - r3.8xlarge
+    - i2.xlarge
+    - i2.2xlarge
+    - i2.4xlarge
+    - i2.8xlarge
+    - d2.xlarge
+    - d2.2xlarge
+    - d2.4xlarge
+    - d2.8xlarge
+    - hi1.4xlarge
+    - hs1.8xlarge
+    - cr1.8xlarge
+    - cc2.8xlarge
+    - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  WIMSAMI:
+    Default: ami-82a458e0
+    ConstraintDescription: Must Be A Valid AMI ID.
+    Type: String
+    Description: "[REQUIRED] AMI To Launch Ec2 Instance"
+  Ec2SubnetId:
+    Type: String
+    Default: subnet-c2540bb4
+    Description: "[REQUIRED] Subnet To Ec2 Instance"
+  Ec2SubnetId2:
+    Type: String
+    Default: subnet-xxxxxxx
+    Description: "[REQUIRED] Subnet To Ec2 Instance"
+  VPCID:
+    Type: String
+    Default: vpc-3d264459
+    Description: "[REQUIRED] VPC ID"
+  SSLARN:
+    Type: String
+    Default: arn:aws:acm:ap-southeast-2:930928620228:certificate/e2b53dae-0b74-4da6-80d6-6d4537247217
+Resources:
+  Ec2InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId:
+        Ref: VPCID
+      GroupDescription: WIMS Ec2 Instance Security Group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '8080'
+        ToPort: '8080'
+        CidrIp: 10.0.0.0/8
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 10.0.0.0/8
+      - IpProtocol: tcp
+        FromPort: '443'
+        ToPort: '443'
+        CidrIp: 10.0.0.0/8
+      - IpProtocol: tcp
+        FromPort: '3389'
+        ToPort: '3389'
+        CidrIp: 10.0.0.0/8
+      Tags:
+      - Key: Name
+        Value: SG-WIMS
+  WIMSServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType:
+        Ref: InstanceType
+      KeyName:
+        Ref: KeyName
+      ImageId:
+        Ref: WIMSAMI
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          VolumeSize: '100'
+          VolumeType: gp2
+      NetworkInterfaces:
+      - GroupSet:
+        - Ref: Ec2InstanceSecurityGroup
+        AssociatePublicIpAddress: 'false'
+        DeviceIndex: '0'
+        DeleteOnTermination: 'true'
+        SubnetId:
+          Ref: Ec2SubnetId
+      Tags:
+      - Value: WIMS-Server
+        Key: Name
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "<powershell>\n"
+            - "###Powershell Script Goes Here...\n"
+            - "</powershell>\n"
+  WIMSTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      Name: WIMS-TG
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: '20'
+      Targets:
+      - Id:
+          Ref: WIMSServer
+        Port: 80
+      UnhealthyThresholdCount: 4
+      VpcId:
+        Ref: VPCID
+      Tags:
+      - Key: Name
+        Value: WIMS-TG
+  WIMSloadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internal
+      Subnets:
+      - Ref: Ec2SubnetId
+      - Ref: Ec2SubnetId2
+      LoadBalancerAttributes:
+      - Key: idle_timeout.timeout_seconds
+        Value: '60'
+      SecurityGroups:
+      - Ref: Ec2InstanceSecurityGroup
+      Tags:
+      - Key: Name
+        Value: WIMS-ALB
+  WIMSALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: WIMSTargetGroup
+      LoadBalancerArn:
+        Ref: WIMSloadBalancer
+      Port: '80'
+      Protocol: HTTP
+  WIMSALBListenerSSL:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: WIMSTargetGroup
+      LoadBalancerArn:
+        Ref: WIMSloadBalancer
+      Port: '443'
+      Protocol: HTTPS
+      Certificates:
+      - CertificateArn:
+          Ref: SSLARN
+Outputs:
+  WIMSIP:
+    Value:
+      Fn::GetAtt:
+      - WIMSServer
+      - PrivateIp
+    Description: WIMS Server Private IP
+  WIMSInstanceId:
+    Value:
+      Ref: WIMSServer
+    Description: Instance Id of newly created instance
